@@ -170,11 +170,6 @@ void DallasComponent::update() {
   }
 }
 
-DallasDevice::DallasDevice() {
-  this->parent_ = nullptr;
-  this->address_ = 0U;
-}
-
 void DallasDevice::set_address(uint64_t address) { this->address_ = address; }
 optional<uint8_t> DallasDevice::get_index() const { return this->index_; }
 void DallasDevice::set_index(uint8_t index) { this->index_ = index; }

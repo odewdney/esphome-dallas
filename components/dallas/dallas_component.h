@@ -44,8 +44,6 @@ class DallasComponent : public PollingComponent {
 
 class DallasDevice {
  public:
-  DallasDevice();
-
   void set_parent(DallasComponent *parent) { parent_ = parent; }
   uint64_t get_address() { return this->address_; }
   /// Helper to get a pointer to the address as uint8_t.
@@ -70,8 +68,8 @@ class DallasDevice {
   void virtual notify_alerting() {};
 
  protected:
-  DallasComponent *parent_;
-  uint64_t address_;
+  DallasComponent *parent_{nullptr};
+  uint64_t address_{0U};
   optional<uint8_t> index_;
   std::string address_name_;
   
