@@ -4,7 +4,7 @@
 namespace esphome {
 namespace dallas {
 
-static const char *const TAG = "dallas.sensor";
+static const char *const TAG = "dallas.ds2408";
 
 static const uint8_t DALLAS_MODEL_DS2408 = 0x29;
 static const uint8_t DALLAS_READ_PIO_REGISTERS = 0xF0;
@@ -13,14 +13,9 @@ static const uint8_t DALLAS_CHANNEL_ACCESS_READ = 0xF5;
 static const uint8_t DALLAS_WRITE_CHANNEL_SEARCH_REGISTER = 0xCC;
 static const uint8_t DALLAS_RESET_ACTIVITY_LATCHES = 0xC3;
 
-DS2408Component::DS2408Component() {
- this->alert_activity_ = false;
-}
-
 bool DS2408Component::is_supported(uint8_t *address8) {
 	return address8[0] == DALLAS_MODEL_DS2408;
 }
-
 
 void DS2408Component::setup() {
   auto *wire = this->get_reset_one_wire_();
@@ -189,23 +184,11 @@ ESP_LOGW(TAG,"Updating cond");
 ESP_LOGD(TAG,"Set pin mode mask=%02x pol=%02x config=%02x read=%02x", this->pin_mode_value_, pol, config, this->read_value_);
 }
 
-
 float DS2408Component::get_setup_priority() const { return setup_priority::IO; }
 
 void DS2408Component::set_alert_activity(bool f) {
   this->alert_activity_ = f;
   update_conditional();
-}
-
-
-void DS2408GPIOPin::setup() { pin_mode(flags_); }
-void DS2408GPIOPin::pin_mode(gpio::Flags flags) { this->parent_->pin_mode_(this->pin_, flags); }
-bool DS2408GPIOPin::digital_read() { return this->parent_->digital_read_(this->pin_) != this->inverted_; }
-void DS2408GPIOPin::digital_write(bool value) { this->parent_->digital_write_(this->pin_, value != this->inverted_); }
-std::string DS2408GPIOPin::dump_summary() const {
-  char buffer[32];
-  snprintf(buffer, sizeof(buffer), "%u via DS2408", pin_);
-  return buffer;
 }
 
 }

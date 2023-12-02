@@ -7,7 +7,7 @@ namespace esphome {
 namespace dallas {
 
 extern const uint8_t ONE_WIRE_ROM_SELECT;
-extern const int ONE_WIRE_ROM_SEARCH;
+extern const uint8_t ONE_WIRE_ROM_SEARCH;
 extern const uint8_t ONE_WIRE_ROM_ACTIVE_SEARCH;
 
 class ESPOneWire {

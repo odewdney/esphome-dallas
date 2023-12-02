@@ -4,7 +4,7 @@
 namespace esphome {
 namespace dallas {
 
-static const char *const TAG = "dallas.sensor";
+static const char *const TAG = "dallas.ds2423";
 
 static const uint8_t DALLAS_MODEL_DS2423 = 0x1D;
 static const uint8_t DALLAS_COMMAND_READ_MEMORY_AND_COUNTER = 0xA5;

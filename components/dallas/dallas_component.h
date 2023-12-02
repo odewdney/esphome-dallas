@@ -9,6 +9,16 @@
 namespace esphome {
 namespace dallas {
 
+ #define LOG_UPDATE_ALERT_INTERVAL(this) \
+   if (this->get_alert_update_interval() == SCHEDULER_DONT_RUN) { \
+     ESP_LOGCONFIG(TAG, "  Alert Interval: never"); \
+   } else if (this->get_alert_update_interval() < 100) { \
+     ESP_LOGCONFIG(TAG, "  Alert Interval: %.3fs", this->get_alert_update_interval() / 1000.0f); \
+   } else { \
+     ESP_LOGCONFIG(TAG, "  Alert Interval: %.1fs", this->get_alert_update_interval() / 1000.0f); \
+   }
+ 
+
 class DallasDevice;
 class DallasSensor;
 
@@ -81,6 +91,38 @@ class DallasSensor : public sensor::Sensor, public DallasDevice {
  public:
   std::string unique_id() override;
   void dump_config() override;
+};
+
+class DallasGPIOPin;
+class DallasPinComponent {
+ protected:
+  friend DallasGPIOPin;
+    /// Helper function to read the value of a pin.
+  bool virtual digital_read_(uint8_t pin) = 0;
+  /// Helper function to write the value of a pin.
+  void virtual digital_write_(uint8_t pin, bool value) = 0;
+  /// Helper function to set the pin mode of a pin.
+  void virtual pin_mode_(uint8_t pin, gpio::Flags flags) = 0;
+};
+
+class DallasGPIOPin : public GPIOPin {
+ public:
+  void setup() override;
+  void pin_mode(gpio::Flags flags) override;
+  bool digital_read() override;
+  void digital_write(bool value) override;
+  std::string dump_summary() const override;
+
+  void set_parent(DallasPinComponent *parent) { parent_ = parent; }
+  void set_pin(uint8_t pin) { pin_ = pin; }
+  void set_inverted(bool inverted) { inverted_ = inverted; }
+  void set_flags(gpio::Flags flags) { flags_ = flags; }
+
+ protected:
+  DallasPinComponent *parent_;
+  uint8_t pin_;
+  bool inverted_;
+  gpio::Flags flags_;
 };
 
 uint16_t crc16(const uint8_t *data, uint16_t len, uint16_t crc, uint16_t reverse_poly, bool refin, bool refout);

@@ -5,7 +5,7 @@ from esphome.components import switch
 from esphome.const import CONF_ID
 import esphome.components.dallas as dallas
 
-DS2405Switch = dallas.dallas_ns.class_("DS2405Component", switch.Switch, cg.Component)
+DS2405Switch = dallas.dallas_ns.class_("DS2405Component", switch.Switch, cg.PollingComponent)
 
 CONFIG_SCHEMA = (
     switch.switch_schema(DS2405Switch)
@@ -16,7 +16,7 @@ cv.Optional("platform"): cv.string
 
         }
     )
-    .extend(cv.COMPONENT_SCHEMA)
+    .extend(cv.polling_component_schema("never"))
 )
 
 async def to_code(config):

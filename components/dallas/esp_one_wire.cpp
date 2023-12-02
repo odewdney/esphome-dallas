@@ -8,7 +8,7 @@ namespace dallas {
 static const char *const TAG = "dallas.one_wire";
 
 const uint8_t ONE_WIRE_ROM_SELECT = 0x55;
-const int ONE_WIRE_ROM_SEARCH = 0xF0;
+const uint8_t ONE_WIRE_ROM_SEARCH = 0xF0;
 const uint8_t ONE_WIRE_ROM_ACTIVE_SEARCH = 0xEC;
 
 ESPOneWire::ESPOneWire(InternalGPIOPin *pin) { pin_ = pin->to_isr(); }

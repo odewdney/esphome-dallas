@@ -10,6 +10,7 @@ from esphome.const import (
     CONF_INVERTED,
     CONF_OUTPUT,
 )
+from esphome.components.dallas import ( CONF_ALERT_ACTIVITY )
 
 DEPENDENCIES = ["dallas"]
 MULTI_CONF = True
@@ -18,7 +19,6 @@ DS2408Component = dallas.dallas_ns.class_("DS2408Component", cg.PollingComponent
 DS2408GPIOPin = dallas.dallas_ns.class_("DS2408GPIOPin", cg.GPIOPin)
 
 CONF_DS2408 = "ds2408"
-CONF_ALERT_ACTIVITY = "activity_alert"
 CONFIG_SCHEMA = (
     cv.Schema(
         {

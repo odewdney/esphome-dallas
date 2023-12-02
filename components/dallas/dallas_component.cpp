@@ -70,7 +70,7 @@ void DallasComponent::set_alert_update_interval(uint32_t alert_update_interval) 
 
 void DallasComponent::call_setup() {
   PollingComponent::call_setup();
-  start_alert_poller();
+  this->start_alert_poller();
 }
 
 void DallasComponent::update_alert() {
@@ -93,6 +93,7 @@ void DallasComponent::dump_config() {
   ESP_LOGCONFIG(TAG, "DallasComponent:");
   LOG_PIN("  Pin: ", this->pin_);
   LOG_UPDATE_INTERVAL(this);
+  LOG_UPDATE_ALERT_INTERVAL(this);
 
   if (this->found_sensors_.empty()) {
     ESP_LOGW(TAG, "  Found no sensors! X");
@@ -196,6 +197,15 @@ void DallasSensor::dump_config() {
   DallasDevice::dump_config();
 }
 
+void DallasGPIOPin::setup() { pin_mode(flags_); }
+void DallasGPIOPin::pin_mode(gpio::Flags flags) { this->parent_->pin_mode_(this->pin_, flags); }
+bool DallasGPIOPin::digital_read() { return this->parent_->digital_read_(this->pin_) != this->inverted_; }
+void DallasGPIOPin::digital_write(bool value) { this->parent_->digital_write_(this->pin_, value != this->inverted_); }
+std::string DallasGPIOPin::dump_summary() const {
+  char buffer[32];
+  snprintf(buffer, sizeof(buffer), "%u via dallas", pin_);
+  return buffer;
+}
 
 
 

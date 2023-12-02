@@ -98,12 +98,6 @@ bool DallasTemperatureSensor::setup_sensor() {
   if (this->scratch_pad_[4] == this->resolution_)
     return false;
 
-  if (this->get_address8()[0] == DALLAS_MODEL_DS18S20) {
-    // DS18S20 doesn't support resolution.
-    ESP_LOGW(TAG, "DS18S20 doesn't support setting resolution.");
-    return false;
-  }
-
   switch (this->resolution_) {
     case 12:
       this->scratch_pad_[4] = 0x7F;
@@ -131,7 +125,12 @@ bool DallasTemperatureSensor::setup_sensor() {
       wire->write8(DALLAS_COMMAND_WRITE_SCRATCH_PAD);
       wire->write8(this->scratch_pad_[2]);  // high alarm temp
       wire->write8(this->scratch_pad_[3]);  // low alarm temp
-      wire->write8(this->scratch_pad_[4]);  // resolution
+      if (this->get_address8()[0] == DALLAS_MODEL_DS18S20) {
+        // DS18S20 doesn't support resolution.
+        ESP_LOGW(TAG, "DS18S20 doesn't support setting resolution.");
+      } else {
+        wire->write8(this->scratch_pad_[4]);  // resolution
+      }
       wire->reset();
 
       // write value to EEPROM
