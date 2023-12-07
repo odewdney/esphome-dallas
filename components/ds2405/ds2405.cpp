@@ -15,7 +15,12 @@ bool DS2405Component::is_supported(uint8_t *address8) {
 float DS2405Component::get_setup_priority() const { return setup_priority::IO; }
 
 bool DS2405Component::setup_sensor() {
-    this->current_ctrl_ = this->search(true);
+    auto restore_state = this->get_initial_state_with_restore_mode();
+    bool state = this->search(true);
+    if (restore_state && state != restore_state.value()) {
+        state = this->toggle_pin();
+    }
+    this->current_ctrl_ = state;
     return true;
 }
 
@@ -23,6 +28,7 @@ void DS2405Component::dump_config() {
   DallasDevice::dump_config();
   ESP_LOGCONFIG(TAG, "    Device: ds2405");
   LOG_UPDATE_INTERVAL(this);
+  switch_::log_switch(TAG, "   ","ds2405", this);
 }
 
 void DS2405Component::update() {

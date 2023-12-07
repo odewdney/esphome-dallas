@@ -82,6 +82,38 @@ bool IRAM_ATTR DallasTemperatureSensor::read_scratch_pad() {
 
   return true;
 }
+bool DallasTemperatureSensor::write_scatch_pad() {
+  auto *wire = this->get_reset_one_wire_();
+
+  if (wire == nullptr) {
+    return false;
+  }
+  {
+    InterruptLock lock;
+    wire->select(this->address_);
+    wire->write8(DALLAS_COMMAND_WRITE_SCRATCH_PAD);
+    wire->write8(this->scratch_pad_[2]);  // high alarm temp
+    wire->write8(this->scratch_pad_[3]);  // low alarm temp
+    if (this->get_address8()[0] == DALLAS_MODEL_DS18S20) {
+    // DS18S20 doesn't support resolution.
+      ESP_LOGW(TAG, "DS18S20 doesn't support setting resolution.");
+    } else {
+      wire->write8(this->scratch_pad_[4]);  // resolution
+    }
+  }
+
+  wire = this->get_reset_one_wire_();
+  if (wire == nullptr) {
+    return false;
+  }
+  // write value to EEPROM
+  wire->select(this->address_);
+  wire->write8(0x48);
+
+  delay(20);  // allow it to finish operation
+  wire = this->get_reset_one_wire_();
+  return true;
+}
 bool DallasTemperatureSensor::setup_sensor() {
   if ( this->get_address8()[0] == 0 )
     return false;
@@ -117,30 +149,8 @@ bool DallasTemperatureSensor::setup_sensor() {
   this->scratch_pad_[2] = 125;
   this->scratch_pad_[3] = -55;
 
-  auto *wire = this->get_one_wire_();
-  {
-    InterruptLock lock;
-    if (wire->reset()) {
-      wire->select(this->address_);
-      wire->write8(DALLAS_COMMAND_WRITE_SCRATCH_PAD);
-      wire->write8(this->scratch_pad_[2]);  // high alarm temp
-      wire->write8(this->scratch_pad_[3]);  // low alarm temp
-      if (this->get_address8()[0] == DALLAS_MODEL_DS18S20) {
-        // DS18S20 doesn't support resolution.
-        ESP_LOGW(TAG, "DS18S20 doesn't support setting resolution.");
-      } else {
-        wire->write8(this->scratch_pad_[4]);  // resolution
-      }
-      wire->reset();
+  this->write_scatch_pad();
 
-      // write value to EEPROM
-      wire->select(this->address_);
-      wire->write8(0x48);
-    }
-  }
-
-  delay(20);  // allow it to finish operation
-  wire->reset();
   return true;
 }
 bool DallasTemperatureSensor::check_scratch_pad() {

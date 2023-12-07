@@ -23,11 +23,11 @@ class DallasTemperatureSensor : public DallasSensor {
   void read_conversion() override;
 
   bool read_scratch_pad();
+  bool write_scatch_pad();
 
   bool check_scratch_pad();
 
   float get_temp_c();
-
 
  protected:
   uint8_t resolution_;
