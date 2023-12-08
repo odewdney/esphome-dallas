@@ -43,12 +43,12 @@ void DallasTemperatureSensor::read_conversion() {
   if (!res) {
     ESP_LOGW(TAG, "'%s' - Resetting bus for read failed!", this->get_name().c_str());
     this->publish_state(NAN);
-    this->parent_->status_set_warning();
+    status_set_warning();
     return;
   }
   if (!this->check_scratch_pad()) {
     this->publish_state(NAN);
-    this->parent_->status_set_warning();
+    status_set_warning();
     return;
   }
 

@@ -46,8 +46,10 @@ void DS2408Component::notify_alerting() {
   uint8_t buffer[1];
   bool res = this->read_registers(DALLAS_READ_PIO_REGISTERS, 0x8d, buffer, 1);
 
+  ESP_LOGD(TAG, "Alert status %02x act=%d", res, this->alert_activity_);
+
   if ( !this->alert_activity_ || (res && (buffer[0] & 8) != 0)) {
-        update_conditional();
+    update_conditional();
   }
 
   if(this->alert_activity_) {

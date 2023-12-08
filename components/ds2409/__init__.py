@@ -16,14 +16,19 @@ DEPENDENCIES = ["dallas"]
 
 DS2409Component = dallas.dallas_ns.class_("DS2409Component", cg.PollingComponent, dallas.DallasDevice)
 DS2409GPIOPin = dallas.dallas_ns.class_("DS2409GPIOPin", cg.GPIOPin)
+DS2409Network = dallas.dallas_ns.class_("DS2409Network", dallas.DallasNetwork)
 
 CONF_DS2409 = "ds2409"
+
+
 
 CONFIG_SCHEMA = (
     cv.Schema(
         {
             cv.Required(CONF_ID): cv.declare_id(DS2409Component),
             cv.Optional(CONF_ALERT_ACTIVITY, default=False): cv.boolean,
+            cv.GenerateID("main"): cv.declare_id(DS2409Network),
+            cv.GenerateID("aux"): cv.declare_id(DS2409Network),
         }
     )
     .extend(cv.polling_component_schema("never"))
@@ -35,6 +40,9 @@ async def to_code(config):
     var = cg.new_Pvariable(config[CONF_ID])
     if CONF_ALERT_ACTIVITY in config:
         cg.add(var.set_alert_activity(config[CONF_ALERT_ACTIVITY]))
+
+    main = cg.Pvariable(config["main"], cg.RawExpression("nullptr"))
+    aux = cg.Pvariable(config["aux"], cg.RawExpression("nullptr"))
 
     await cg.register_component(var, config)
     await dallas.register_dallas_device(var, config)

@@ -7,6 +7,8 @@ namespace dallas {
 static const char *const TAG = "dallas.sensor";
 static const uint8_t DALLAS_COMMAND_START_CONVERSION = 0x44;
 
+void DallasNetwork::register_sensor(DallasDevice *sensor) { this->sensors_.push_back(sensor); }
+
 void DallasComponent::setup() {
   ESP_LOGCONFIG(TAG, "Setting up DallasComponent 2...");
 
@@ -78,12 +80,17 @@ void DallasComponent::update_alert() {
   this->one_wire_->reset_search();
   uint64_t addr;
   while((addr = this->one_wire_->active_search()) != 0u){
-      if ( (addr & 0xff) != 0x05 ) // suppress ds2405
-      	ESP_LOGD(TAG,"Alert %016llx",addr);
+//      if ( (addr & 0xff) != 0x05 ) // suppress ds2405
+//      	ESP_LOGD(TAG,"Alert %016llx",addr);
+      bool found = false;
       for (auto *sensor : this->sensors_) {
         if (sensor->get_address() == addr){
           sensor->notify_alerting();
+          found = true;
         }
+      }
+      if (!found){
+        ESP_LOGW(TAG,"Alert: device not found for %016llx", addr);
       }
   }
 }
@@ -116,7 +123,6 @@ void DallasComponent::dump_config() {
   }
 }
 
-void DallasComponent::register_sensor(DallasDevice *sensor) { this->sensors_.push_back(sensor); }
 void DallasComponent::update() {
   this->status_clear_warning();
 
@@ -173,7 +179,11 @@ ESPOneWire *DallasDevice::get_reset_one_wire_() {
     ESP_LOGD(TAG, "parent is null");
     return nullptr;
   }
-  auto wire = parent->one_wire_;
+  return parent->get_reset_one_wire_();
+}
+
+ESPOneWire *DallasComponent::get_reset_one_wire_() {
+  auto wire = one_wire_;
   if ( wire == nullptr ) {
     ESP_LOGD(TAG, "one wire is null");
     return nullptr;

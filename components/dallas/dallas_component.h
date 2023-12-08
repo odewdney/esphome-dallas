@@ -9,23 +9,32 @@
 namespace esphome {
 namespace dallas {
 
- #define LOG_UPDATE_ALERT_INTERVAL(this) \
-   if (this->get_alert_update_interval() == SCHEDULER_DONT_RUN) { \
-     ESP_LOGCONFIG(TAG, "  Alert Interval: never"); \
-   } else if (this->get_alert_update_interval() < 100) { \
-     ESP_LOGCONFIG(TAG, "  Alert Interval: %.3fs", this->get_alert_update_interval() / 1000.0f); \
-   } else { \
-     ESP_LOGCONFIG(TAG, "  Alert Interval: %.1fs", this->get_alert_update_interval() / 1000.0f); \
-   }
+#define LOG_UPDATE_ALERT_INTERVAL(this) \
+  if (this->get_alert_update_interval() == SCHEDULER_DONT_RUN) { \
+    ESP_LOGCONFIG(TAG, "  Alert Interval: never"); \
+  } else if (this->get_alert_update_interval() < 100) { \
+    ESP_LOGCONFIG(TAG, "  Alert Interval: %.3fs", this->get_alert_update_interval() / 1000.0f); \
+  } else { \
+    ESP_LOGCONFIG(TAG, "  Alert Interval: %.1fs", this->get_alert_update_interval() / 1000.0f); \
+  }
  
 
 class DallasDevice;
 class DallasSensor;
 
-class DallasComponent : public PollingComponent {
+class DallasNetwork {
+ public:
+  void register_sensor(DallasDevice *sensor);
+ protected:
+  friend DallasDevice;
+  virtual ESPOneWire *get_reset_one_wire_() = 0;
+  virtual Component *get_component() = 0;
+  std::vector<DallasDevice *> sensors_;
+};
+
+class DallasComponent : public PollingComponent, public DallasNetwork {
  public:
   void set_pin(InternalGPIOPin *pin) { pin_ = pin; }
-  void register_sensor(DallasDevice *sensor);
 
   void setup() override;
   void dump_config() override;
@@ -42,19 +51,19 @@ class DallasComponent : public PollingComponent {
   void call_setup() override;
 
  protected:
-  friend DallasDevice;
+
+  ESPOneWire *get_reset_one_wire_() override;
+  Component *get_component() override { return this; }
 
   InternalGPIOPin *pin_;
   ESPOneWire *one_wire_;
-  std::vector<DallasDevice *> sensors_;
   std::vector<uint64_t> found_sensors_;
   uint32_t alert_update_interval_;
 };
 
-
 class DallasDevice {
  public:
-  void set_parent(DallasComponent *parent) { parent_ = parent; }
+  void set_parent(DallasNetwork *parent) { parent_ = parent; }
   uint64_t get_address() { return this->address_; }
   /// Helper to get a pointer to the address as uint8_t.
   uint8_t *get_address8();
@@ -78,13 +87,14 @@ class DallasDevice {
   void virtual notify_alerting() {};
 
  protected:
-  DallasComponent *parent_{nullptr};
+  DallasNetwork *parent_{nullptr};
   uint64_t address_{0U};
   optional<uint8_t> index_;
   std::string address_name_;
   
-  ESPOneWire *get_one_wire_() { return this->parent_ ? this->parent_->one_wire_ : nullptr; }
+ // ESPOneWire *get_one_wire_() { return this->parent_ ? this->parent_->one_wire_ : nullptr; }
   ESPOneWire *get_reset_one_wire_();
+  void status_set_warning() { this->parent_->get_component()->status_set_warning(); }
 };
 
 class DallasSensor : public sensor::Sensor, public DallasDevice {

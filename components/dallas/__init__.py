@@ -3,18 +3,19 @@ import esphome.config_validation as cv
 from esphome import pins
 from esphome.const import CONF_ID, CONF_PIN, CONF_DALLAS_ID, CONF_ADDRESS, CONF_INDEX
 
-
 MULTI_CONF = True
 AUTO_LOAD = ["sensor"]
 CONF_ALERT_UPDATE_INTERVAL = "alert_update_interval"
 CONF_ALERT_ACTIVITY = "activity_alert"
 
 dallas_ns = cg.esphome_ns.namespace("dallas")
-DallasComponent = dallas_ns.class_("DallasComponent", cg.PollingComponent)
+DallasNetwork = dallas_ns.class_("DallasNetwork")
+DallasComponent = dallas_ns.class_("DallasComponent", cg.PollingComponent, DallasNetwork)
 
 CONFIG_SCHEMA = cv.Schema(
     {
-        cv.GenerateID(): cv.declare_id(DallasComponent),
+        cv.Optional(CONF_ID,"dallas_wire"): cv.declare_id(DallasComponent),
+#        cv.GenerateID(): cv.declare_id(DallasComponent),
         cv.Required(CONF_PIN): pins.internal_gpio_output_pin_schema,
         cv.Optional(CONF_ALERT_UPDATE_INTERVAL, default="never"): cv.update_interval,
     }
@@ -35,7 +36,8 @@ DallasDevice = dallas_ns.class_("DallasDevice")
 def dallas_device_schema():
     """Create a schema for a dallas device"""
     schema = {
-      cv.GenerateID(CONF_DALLAS_ID): cv.use_id(DallasComponent),
+      #cv.GenerateID(CONF_DALLAS_ID): cv.use_id(DallasNetwork),
+      cv.Optional(CONF_DALLAS_ID, "dallas_wire"): cv.use_id(DallasNetwork),
       cv.Optional(CONF_ADDRESS): cv.hex_uint64_t,
       cv.Optional(CONF_INDEX): cv.positive_int,
 	}

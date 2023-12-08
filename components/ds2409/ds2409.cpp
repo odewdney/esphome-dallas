@@ -14,6 +14,14 @@ static const uint8_t DALLAS_DIRECT_ON_MAIN = 0xa5;
 static const uint8_t DALLAS_SMART_ON_MAIN = 0xcc;
 static const uint8_t DALLAS_SMART_ON_AUX = 0x33;
 
+ESPOneWire *DS2409Network::get_reset_one_wire_() { return this->parent_->get_reset_one_wire_child_(this->main_); }
+Component *DS2409Network::get_component() { return this->parent_; }
+
+ESPOneWire *DS2409Component::get_reset_one_wire_child_(bool main) {
+    return this->smart_on(main);
+}
+
+
 bool DS2409Component::is_supported(uint8_t *address8) {
 	return address8[0] == DALLAS_MODEL_DS2409;
 }
@@ -98,10 +106,10 @@ uint8_t DS2409Component::status_update(uint8_t config) {
     return info;
 }
 
-bool DS2409Component::smart_on(bool main) {
+ESPOneWire *DS2409Component::smart_on(bool main) {
     auto *wire = this->get_reset_one_wire_();
     if(wire == nullptr){
-        return false;
+        return nullptr;
     }
 
     uint8_t cmd = main ? DALLAS_SMART_ON_MAIN : DALLAS_SMART_ON_AUX;
@@ -114,10 +122,16 @@ bool DS2409Component::smart_on(bool main) {
         wire->write8(0xff); // reset
         presence = wire->read8();
         auto confirm = wire->read8();
-        if( confirm != cmd )
-          return false;
+        if( confirm != cmd ) {
+            ESP_LOGD(TAG, "failed to get confirm");
+          return nullptr;
+        }
     }
-    return presence != 0xff;
+    if ( presence == 0xff ) {
+        ESP_LOGD(TAG, "no devices on %s", main ?"main":"aux");
+        return nullptr;
+    }
+    return wire;
 }
 
 void DS2409Component::all_off() {

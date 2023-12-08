@@ -8,6 +8,20 @@
 namespace esphome {
 namespace dallas {
 
+class DS2409Component;
+
+class DS2409Network : public DallasNetwork {
+ public:
+    DS2409Network(DS2409Component *parent, bool main) {this->parent_=parent;this->main_=main;}
+
+ protected:
+    DS2409Component *parent_;
+    bool main_;
+
+  ESPOneWire *get_reset_one_wire_() override;
+  Component *get_component() override;
+};
+
 class DS2409Component : public DallasDevice, public PollingComponent, public switch_::Switch, public DallasPinComponent {
  public:
   bool setup_sensor() override;
@@ -19,12 +33,18 @@ class DS2409Component : public DallasDevice, public PollingComponent, public swi
   void notify_alerting() override;
   void set_alert_activity(bool f);
 
+    DS2409Network main{this,true};
+    DS2409Network aux{this,false};
+
  protected:
   bool current_state_;
   bool current_ctrl_;
   bool alert_activity_{false};
 
   void write_state(bool state) override;
+
+    friend DS2409Network;
+  ESPOneWire *get_reset_one_wire_child_(bool main);
 
   // gpio pin component
   bool digital_read_(uint8_t pin) override;
@@ -33,7 +53,7 @@ class DS2409Component : public DallasDevice, public PollingComponent, public swi
 
   // device access
   uint8_t status_update(uint8_t config);
-  bool smart_on(bool main);
+  ESPOneWire *smart_on(bool main);
   void all_off();
 };
 

@@ -15,6 +15,7 @@ from esphome.components.dallas import ( CONF_ALERT_ACTIVITY )
 DEPENDENCIES = ["dallas"]
 MULTI_CONF = True
 
+DS2405Device = dallas.dallas_ns.class_("DS2405Device", dallas.DallasDevice, dallas.DallasPinComponent)
 DS2405Component = dallas.dallas_ns.class_("DS2405Component", cg.PollingComponent, dallas.DallasDevice, dallas.DallasPinComponent)
 DS2405GPIOPin = dallas.dallas_ns.class_("DS2405GPIOPin", dallas.cg.GPIOPin)
 CONF_DS2405 = "ds2405"
