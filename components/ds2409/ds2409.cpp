@@ -16,6 +16,11 @@ static const uint8_t DALLAS_SMART_ON_AUX = 0x33;
 
 ESPOneWire *DS2409Network::get_reset_one_wire_() { return this->parent_->get_reset_one_wire_child_(this->main_); }
 Component *DS2409Network::get_component() { return this->parent_; }
+void DS2409Network::component_set_timeout(const std::string &name, uint32_t timeout, std::function<void()> &&f)
+{
+    parent_->set_timeout(name, timeout, std::move(f));
+}
+
 
 ESPOneWire *DS2409Component::get_reset_one_wire_child_(bool main) {
     return this->smart_on(main);
@@ -41,6 +46,9 @@ bool DS2409Component::setup_sensor() {
     auto info = this->status_update(state_reg);
     this->current_state_ = info & 0x40;
 
+    for(auto *net : {&this->main,&this->aux})
+    net->setup_sensor();
+
     return true;
 }
 
@@ -54,6 +62,8 @@ void DS2409Component::dump_config() {
 void DS2409Component::update() {
 //    this->current_state_ = search(false);
 //    this->publish_state(this->current_state_);
+    for(auto *net : {&this->main,&this->aux})
+        net->update_conversions();
 }
 
 void DS2409Component::set_alert_activity(bool f) { this->alert_activity_ = f; }

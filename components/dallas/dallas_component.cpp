@@ -9,6 +9,35 @@ static const uint8_t DALLAS_COMMAND_START_CONVERSION = 0x44;
 
 void DallasNetwork::register_sensor(DallasDevice *sensor) { this->sensors_.push_back(sensor); }
 
+bool DallasNetwork::setup_sensor() {
+ for(auto sensor : sensors_){
+  sensor->setup_sensor();
+ }
+ return true;
+}
+
+bool DallasNetwork::update_conversions() {
+  auto wire = this->get_reset_one_wire_();
+  if ( wire == nullptr )
+    return false;
+
+  {
+    InterruptLock lock;
+    wire->skip();
+    wire->write8(DALLAS_COMMAND_START_CONVERSION);
+  }
+
+  for (auto *sensor : this->sensors_) {
+	auto conversion_millis = sensor->millis_to_wait_for_conversion();
+	if (conversion_millis > 0) {
+      this->component_set_timeout(sensor->get_address_name(), conversion_millis, [this, sensor] {
+	    sensor->read_conversion();
+      });
+	}
+  }
+  return true;
+}
+
 void DallasComponent::setup() {
   ESP_LOGCONFIG(TAG, "Setting up DallasComponent 2...");
 
@@ -125,34 +154,10 @@ void DallasComponent::dump_config() {
 
 void DallasComponent::update() {
   this->status_clear_warning();
-
-  bool result;
-  {
-    InterruptLock lock;
-    result = this->one_wire_->reset();
-  }
+  bool result = this->update_conversions();
   if (!result) {
     ESP_LOGE(TAG, "Requesting conversion failed");
     this->status_set_warning();
-//    for (auto *sensior : this->sensors_) {
-//      sensor->publish_state(NAN);
-//    }
-    return;
-  }
-
-  {
-    InterruptLock lock;
-    this->one_wire_->skip();
-    this->one_wire_->write8(DALLAS_COMMAND_START_CONVERSION);
-  }
-
-  for (auto *sensor : this->sensors_) {
-	auto conversion_millis = sensor->millis_to_wait_for_conversion();
-	if (conversion_millis > 0) {
-      this->set_timeout(sensor->get_address_name(), conversion_millis, [this, sensor] {
-	    sensor->read_conversion();
-      });
-	}
   }
 }
 

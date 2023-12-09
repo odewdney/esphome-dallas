@@ -25,11 +25,14 @@ class DallasSensor;
 class DallasNetwork {
  public:
   void register_sensor(DallasDevice *sensor);
+  virtual bool setup_sensor();
+  bool update_conversions();
  protected:
   friend DallasDevice;
   virtual ESPOneWire *get_reset_one_wire_() = 0;
   virtual Component *get_component() = 0;
   std::vector<DallasDevice *> sensors_;
+  virtual void component_set_timeout(const std::string &name, uint32_t timeout, std::function<void()> &&f) = 0;  // NOLINT
 };
 
 class DallasComponent : public PollingComponent, public DallasNetwork {
@@ -54,6 +57,7 @@ class DallasComponent : public PollingComponent, public DallasNetwork {
 
   ESPOneWire *get_reset_one_wire_() override;
   Component *get_component() override { return this; }
+  void component_set_timeout(const std::string &name, uint32_t timeout, std::function<void()> &&f) override {set_timeout(name, timeout, std::move(f));}
 
   InternalGPIOPin *pin_;
   ESPOneWire *one_wire_;

@@ -41,8 +41,9 @@ async def to_code(config):
     if CONF_ALERT_ACTIVITY in config:
         cg.add(var.set_alert_activity(config[CONF_ALERT_ACTIVITY]))
 
-    main = cg.Pvariable(config["main"], cg.RawExpression("nullptr"))
-    aux = cg.Pvariable(config["aux"], cg.RawExpression("nullptr"))
+
+    main = cg.Pvariable(config["main"], var.get_network(True))
+    aux = cg.Pvariable(config["aux"], var.get_network(False))
 
     await cg.register_component(var, config)
     await dallas.register_dallas_device(var, config)

@@ -20,6 +20,8 @@ class DS2409Network : public DallasNetwork {
 
   ESPOneWire *get_reset_one_wire_() override;
   Component *get_component() override;
+  void component_set_timeout(const std::string &name, uint32_t timeout, std::function<void()> &&f) override;
+
 };
 
 class DS2409Component : public DallasDevice, public PollingComponent, public switch_::Switch, public DallasPinComponent {
@@ -33,10 +35,11 @@ class DS2409Component : public DallasDevice, public PollingComponent, public swi
   void notify_alerting() override;
   void set_alert_activity(bool f);
 
-    DS2409Network main{this,true};
-    DS2409Network aux{this,false};
+  DS2409Network *get_network(bool mainnetwork) { return mainnetwork ? &main : &aux; }
 
  protected:
+    DS2409Network main{this,true};
+    DS2409Network aux{this,false};
   bool current_state_;
   bool current_ctrl_;
   bool alert_activity_{false};
