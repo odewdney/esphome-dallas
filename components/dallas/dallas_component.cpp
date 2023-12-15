@@ -17,6 +17,9 @@ bool DallasNetwork::setup_sensor() {
 }
 
 bool DallasNetwork::update_conversions() {
+  if (this->sensors_.empty())
+    return true;
+
   auto wire = this->get_reset_one_wire_();
   if ( wire == nullptr )
     return false;
@@ -106,21 +109,39 @@ void DallasComponent::call_setup() {
 
 void DallasComponent::update_alert() {
   //ESP_LOGD(TAG,"Scanning alerting devices");
+  auto start = millis();
+  uint8_t count = 0;
+
   this->one_wire_->reset_search();
-  uint64_t addr;
-  while((addr = this->one_wire_->active_search()) != 0u){
+  while(true){
+    auto wire = this->get_reset_one_wire_();
+    if ( wire == nullptr )
+      break;
+
+    auto addr = wire->active_search();
+    if ( addr == 0u )
+      break;
 //      if ( (addr & 0xff) != 0x05 ) // suppress ds2405
 //      	ESP_LOGD(TAG,"Alert %016llx",addr);
       bool found = false;
       for (auto *sensor : this->sensors_) {
         if (sensor->get_address() == addr){
-          sensor->notify_alerting();
+          this->component_set_timeout(sensor->get_address_name(), 1, [this, sensor] {
+        	    sensor->notify_alerting();
+              });
+//          sensor->notify_alerting();
+          ++count;
           found = true;
         }
       }
       if (!found){
         ESP_LOGW(TAG,"Alert: device not found for %016llx", addr);
       }
+  }
+
+  auto duration = millis() - start;
+  if ( duration > 20) {
+    ESP_LOGW(TAG, "long alert %d count=%d", duration, count);
   }
 }
 
@@ -148,6 +169,18 @@ void DallasComponent::dump_config() {
         ESP_LOGE(TAG, "Couldn't find sensor by index - not connected. Proceeding without it.");
         continue;
       }
+    }
+  }
+  for (auto &address : this->found_sensors_) {
+    bool found = false;
+    for (auto *sensor : this->sensors_) {
+      if ( sensor->get_address() == address) {
+        found = true;
+        break;
+      }
+    }
+    if ( !found ) {
+      ESP_LOGCONFIG(TAG,"Address not configured %016lld", address);
     }
   }
 }

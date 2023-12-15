@@ -43,6 +43,7 @@ class DS2409Component : public DallasDevice, public PollingComponent, public swi
   bool current_state_;
   bool current_ctrl_;
   bool alert_activity_{false};
+  bool direct_main{false};
 
   void write_state(bool state) override;
 
@@ -56,6 +57,7 @@ class DS2409Component : public DallasDevice, public PollingComponent, public swi
 
   // device access
   uint8_t status_update(uint8_t config);
+  bool direct_onmain(bool main);
   ESPOneWire *smart_on(bool main);
   void all_off();
 };

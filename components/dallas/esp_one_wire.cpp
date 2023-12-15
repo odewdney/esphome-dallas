@@ -41,7 +41,13 @@ bool HOT IRAM_ATTR ESPOneWire::reset() {
   return r;
 }
 
+uint32_t lastbit{0};
+
 void HOT IRAM_ATTR ESPOneWire::write_bit(bool bit) {
+  while((micros()-lastbit)<60)
+    ;
+  lastbit = micros();
+
   // drive bus low
   pin_.pin_mode(gpio::FLAG_OUTPUT);
   pin_.digital_write(false);
@@ -52,8 +58,10 @@ void HOT IRAM_ATTR ESPOneWire::write_bit(bool bit) {
   // time slot: t_slot: min=60µs, max=120µs
   // recovery time: t_rec: min=1µs
   // ds18b20 appears to read the bus after roughly 14µs
-  uint32_t delay0 = bit ? 6 : 60;
-  uint32_t delay1 = bit ? 54 : 5;
+//  uint32_t delay0 = bit ? 6 : 60;
+//  uint32_t delay1 = bit ? 54 : 5;
+  uint32_t delay0 = bit ? 6 : 55;
+ uint32_t delay1 = bit ? 1 : 1;
 
   // delay A/C
   delayMicroseconds(delay0);
@@ -64,6 +72,10 @@ void HOT IRAM_ATTR ESPOneWire::write_bit(bool bit) {
 }
 
 bool HOT IRAM_ATTR ESPOneWire::read_bit() {
+  while((micros()-lastbit)<60)
+    ;
+  lastbit = micros();
+
   // drive bus low
   pin_.pin_mode(gpio::FLAG_OUTPUT);
   pin_.digital_write(false);
@@ -100,11 +112,23 @@ bool HOT IRAM_ATTR ESPOneWire::read_bit() {
   // sample bus to read bit from peer
   bool r = pin_.digital_read();
 
+/*
+  // wait for 0 to end
+  if (!r){
+    while ( (micros() - start) < 60){
+      if ( pin_.digital_read() ) {
+        delayMicroseconds(2);
+        break;
+      }
+    }
+  }
+  */
+/*
   // read slot is at least 60µs; get as close to 60µs to spend less time with interrupts locked
   uint32_t now = micros();
   if (now - start < 60)
     delayMicroseconds(60 - (now - start));
-
+*/
   return r;
 }
 
@@ -157,18 +181,36 @@ uint64_t ESPOneWire::search_select(uint64_t addr, uint8_t cmd) {
   return this->perform_search(cmd);
 }
 
+const uint8_t TRIBIT_SINGLE_BIT = 0x20;
+const uint8_t TRIBIT_SECOND_BIT = 0x40;
+const uint8_t TRIBIT_BRANCH_BIT = 0x80;
+
+uint8_t IRAM_ATTR ESPOneWire::tribit(bool dir) {
+  // read bit
+  bool id_bit = this->read_bit();
+  // read its complement
+  bool cmp_id_bit = this->read_bit();
+
+  if ( id_bit != cmp_id_bit ) {
+    dir = id_bit;
+  } else {
+    // error - no one there
+    if (!( id_bit && cmp_id_bit))
+      dir = 1;
+  }
+  this->write_bit(dir);
+
+  uint8_t res = 0;
+  if(id_bit) res |= TRIBIT_SINGLE_BIT;
+  if(cmp_id_bit) res |= TRIBIT_SECOND_BIT;
+  if(dir) res |= TRIBIT_BRANCH_BIT;
+
+  return res;
+}
+
 uint64_t IRAM_ATTR ESPOneWire::perform_search(uint8_t cmd) {
   if (this->last_device_flag_) {
     return 0u;
-  }
-
-  {
-    InterruptLock lock;
-    if (!this->reset()) {
-      // Reset failed or no devices present
-      this->reset_search();
-      return 0u;
-    }
   }
 
   uint8_t id_bit_number = 1;
@@ -182,32 +224,31 @@ uint64_t IRAM_ATTR ESPOneWire::perform_search(uint8_t cmd) {
     // Initiate search
     this->write8(cmd);
     do {
+      bool branch;
+
+      if (id_bit_number < this->last_discrepancy_) {
+        branch = (this->rom_number8_()[rom_byte_number] & rom_byte_mask) > 0;
+      } else {
+        branch = id_bit_number == this->last_discrepancy_;
+      }
+
+      auto tbit = this->tribit(branch);
+
       // read bit
-      bool id_bit = this->read_bit();
+      bool id_bit = tbit & TRIBIT_SINGLE_BIT;
       // read its complement
-      bool cmp_id_bit = this->read_bit();
+      bool cmp_id_bit = tbit & TRIBIT_SECOND_BIT;
 
       if (id_bit && cmp_id_bit) {
         // No devices participating in search
         break;
       }
 
-      bool branch;
+      // actual branch taken
+      branch =  tbit & TRIBIT_BRANCH_BIT;
 
-      if (id_bit != cmp_id_bit) {
-        // only chose one branch, the other one doesn't have any devices.
-        branch = id_bit;
-      } else {
-        // there are devices with both 0s and 1s at this bit
-        if (id_bit_number < this->last_discrepancy_) {
-          branch = (this->rom_number8_()[rom_byte_number] & rom_byte_mask) > 0;
-        } else {
-          branch = id_bit_number == this->last_discrepancy_;
-        }
-
-        if (!branch) {
-          last_zero = id_bit_number;
-        }
+      if (!branch) {
+        last_zero = id_bit_number;
       }
 
       if (branch) {
@@ -218,8 +259,6 @@ uint64_t IRAM_ATTR ESPOneWire::perform_search(uint8_t cmd) {
         this->rom_number8_()[rom_byte_number] &= ~rom_byte_mask;
       }
 
-      // choose/announce branch
-      this->write_bit(branch);
       id_bit_number++;
       rom_byte_mask <<= 1;
       if (rom_byte_mask == 0u) {
@@ -252,7 +291,18 @@ std::vector<uint64_t> ESPOneWire::search_vec() {
 
   this->reset_search();
   uint64_t address;
-  while ((address = this->search()) != 0u)
+  while ( true ) {
+    {
+      InterruptLock lock;
+      if (!this->reset()) {
+        // Reset failed or no devices present
+        this->reset_search();
+        break;
+      }
+    }
+    uint64_t address = this->search();
+    if ( address == 0u)
+      break;
     res.push_back(address);
 
   return res;
