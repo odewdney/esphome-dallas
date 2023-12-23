@@ -23,9 +23,11 @@ void DS2409Network::component_set_timeout(const std::string &name, uint32_t time
 
 ESPOneWire *DS2409Component::get_reset_one_wire_child_(bool main) {
     if (main) {
-        bool direct = this->direct_onmain();
-        if ( !direct )
-            return nullptr;
+        if(!this->direct_main) {
+            bool direct = this->direct_onmain();
+            if ( !direct )
+                return nullptr;
+        }
         return this->get_reset_one_wire_();
     }
     return this->smart_on(main);
@@ -50,8 +52,8 @@ bool DS2409Component::setup_sensor() {
     auto info = this->status_update(state_reg);
     this->current_state_ = info & 0x40;
 
-    for(auto *net : {&this->main,&this->aux})
-      net->setup_sensor();
+    this->main.setup_sensors();
+    this->aux.setup_sensors();
 
     return true;
 }
@@ -61,14 +63,17 @@ void DS2409Component::dump_config() {
   ESP_LOGCONFIG(TAG, "    Device: ds2409");
   LOG_UPDATE_INTERVAL(this);
   switch_::log_switch(TAG, "  ", "ctrl", this);
+    ESP_LOGCONFIG(TAG, "    Branch: main");
+    this->main.dump_config();
+    ESP_LOGCONFIG(TAG, "    Branch: aux");
+    this->aux.dump_config();
 }
 
 void DS2409Component::update() {
 //    this->current_state_ = search(false);
 //    this->publish_state(this->current_state_);
-    for(auto *net : {&this->main,&this->aux}) {
-        net->update_conversions();
-    }
+    this->main.update_conversions();
+    this->aux.update_conversions();
     this->all_off();
 }
 
@@ -135,18 +140,18 @@ bool DS2409Component::direct_onmain() {
         return false;
     }
 
-    uint8_t presence;
     {
         InterruptLock lock;
         wire->select(this->address_);
         wire->write8(DALLAS_DIRECT_ON_MAIN);
         auto confirm = wire->read8();
-        if ( confirm == DALLAS_DIRECT_ON_MAIN) {
-            this->direct_main = true;
-            return true;
+        if ( confirm != DALLAS_DIRECT_ON_MAIN) {
+            ESP_LOGW(TAG,"Failed to set direct-on");
+            return false;
         }
     }
-    return false;
+    this->direct_main = true;
+    return true;
 }
 
 ESPOneWire *DS2409Component::smart_on(bool main) {
@@ -168,7 +173,7 @@ ESPOneWire *DS2409Component::smart_on(bool main) {
         presence = wire->read8();
         auto confirm = wire->read8();
         if( confirm != cmd ) {
-            ESP_LOGD(TAG, "failed to get confirm");
+          ESP_LOGW(TAG, "failed to get confirm");
           return nullptr;
         }
     }

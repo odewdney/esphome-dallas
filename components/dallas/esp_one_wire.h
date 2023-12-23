@@ -43,6 +43,9 @@ class ESPOneWire {
   /// Read an 64-bit unsigned integer from the bus.
   uint64_t read64();
 
+  // read 2 bits, write 1 bit, for search
+  uint8_t tribit(bool dir);
+
   /// Select a specific address on the bus for the following command.
   void select(uint64_t address);
 

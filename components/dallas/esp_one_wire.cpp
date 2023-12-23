@@ -162,7 +162,9 @@ void IRAM_ATTR ESPOneWire::select(uint64_t address) {
   this->write8(ONE_WIRE_ROM_SELECT);
   this->write64(address);
 }
+static int search_count = 0;
 void IRAM_ATTR ESPOneWire::reset_search() {
+  search_count = 0;
   this->last_discrepancy_ = 0;
   this->last_device_flag_ = false;
   this->rom_number_ = 0;
@@ -195,7 +197,7 @@ uint8_t IRAM_ATTR ESPOneWire::tribit(bool dir) {
     dir = id_bit;
   } else {
     // error - no one there
-    if (!( id_bit && cmp_id_bit))
+    if (id_bit && cmp_id_bit)
       dir = 1;
   }
   this->write_bit(dir);
@@ -212,6 +214,8 @@ uint64_t IRAM_ATTR ESPOneWire::perform_search(uint8_t cmd) {
   if (this->last_device_flag_) {
     return 0u;
   }
+
+if(search_count++ > 20) return 0u;
 
   uint8_t id_bit_number = 1;
   uint8_t last_zero = 0;
@@ -247,7 +251,7 @@ uint64_t IRAM_ATTR ESPOneWire::perform_search(uint8_t cmd) {
       // actual branch taken
       branch =  tbit & TRIBIT_BRANCH_BIT;
 
-      if (!branch) {
+      if (!branch & !id_bit & !cmp_id_bit) {
         last_zero = id_bit_number;
       }
 
@@ -290,7 +294,6 @@ std::vector<uint64_t> ESPOneWire::search_vec() {
   std::vector<uint64_t> res;
 
   this->reset_search();
-  uint64_t address;
   while ( true ) {
     {
       InterruptLock lock;
@@ -304,9 +307,10 @@ std::vector<uint64_t> ESPOneWire::search_vec() {
     if ( address == 0u)
       break;
     res.push_back(address);
-
+  }
   return res;
 }
+
 void IRAM_ATTR ESPOneWire::skip() {
   this->write8(0xCC);  // skip ROM
 }

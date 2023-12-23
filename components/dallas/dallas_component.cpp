@@ -9,11 +9,49 @@ static const uint8_t DALLAS_COMMAND_START_CONVERSION = 0x44;
 
 void DallasNetwork::register_sensor(DallasDevice *sensor) { this->sensors_.push_back(sensor); }
 
-bool DallasNetwork::setup_sensor() {
- for(auto sensor : sensors_){
-  sensor->setup_sensor();
- }
- return true;
+bool DallasNetwork::setup_sensors() {
+  std::vector<uint64_t> raw_sensors;
+  raw_sensors = this->search_vec();
+
+ESP_LOGD(TAG, "found %d sensors", raw_sensors.size());
+
+  for (auto &address : raw_sensors) {
+    auto *address8 = reinterpret_cast<uint8_t *>(&address);
+    if (crc8(address8, 7) != address8[7]) {
+      ESP_LOGW(TAG, "Dallas device 0x%s has invalid CRC.", format_hex(address).c_str());
+      continue;
+    }
+    bool is_supported = false;
+    for (auto *sensor : this->sensors_) {
+      if ( sensor->is_supported(address8) ) {
+        is_supported = true;
+        break;
+      }
+    }
+    if ( !is_supported ) {
+        ESP_LOGW(TAG, "Unknown device type 0x%02X.", address8[0]);
+        continue;
+    }
+    this->found_sensors_.push_back(address);
+  }
+
+  bool successful = true;
+
+  for (auto *sensor : this->sensors_) {
+    if (sensor->get_index().has_value()) {
+      if (*sensor->get_index() >= this->found_sensors_.size()
+        || !sensor->is_supported(reinterpret_cast<uint8_t *>(&this->found_sensors_[*sensor->get_index()]))) {
+        successful = false;
+        continue;
+      }
+      sensor->set_address(this->found_sensors_[*sensor->get_index()]);
+    }
+
+    if (!sensor->setup_sensor()) {
+      successful = false;
+    }
+  }
+  return successful;
 }
 
 bool DallasNetwork::update_conversions() {
@@ -41,6 +79,24 @@ bool DallasNetwork::update_conversions() {
   return true;
 }
 
+std::vector<uint64_t> DallasNetwork::search_vec() {
+  std::vector<uint64_t> res;
+
+  while ( true ) {
+    auto wire = this->get_reset_one_wire_();
+    if ( wire == nullptr )
+      break;
+    if ( res.empty() ) // reset on first
+      wire->reset_search();
+
+    auto address = wire->search();
+    if ( address == 0u)
+      break;
+    res.push_back(address);
+  }
+  return res;
+}
+
 void DallasComponent::setup() {
   ESP_LOGCONFIG(TAG, "Setting up DallasComponent 2...");
 
@@ -52,42 +108,8 @@ void DallasComponent::setup() {
 
   one_wire_ = new ESPOneWire(pin_);  // NOLINT(cppcoreguidelines-owning-memory)
 
-  std::vector<uint64_t> raw_sensors;
-  raw_sensors = this->one_wire_->search_vec();
-
-  for (auto &address : raw_sensors) {
-    auto *address8 = reinterpret_cast<uint8_t *>(&address);
-    if (crc8(address8, 7) != address8[7]) {
-      ESP_LOGW(TAG, "Dallas device 0x%s has invalid CRC.", format_hex(address).c_str());
-      continue;
-    }
-	bool is_supported = false;
-    for (auto *sensor : this->sensors_) {
-	  if ( sensor->is_supported(address8) ) {
-	    is_supported = true;
-	    break;
-	  }
-	}
-	if ( !is_supported ) {
-      ESP_LOGW(TAG, "Unknown device type 0x%02X.", address8[0]);
-      continue;
-	}
-    this->found_sensors_.push_back(address);
-  }
-
-  for (auto *sensor : this->sensors_) {
-    if (sensor->get_index().has_value()) {
-      if (*sensor->get_index() >= this->found_sensors_.size()
-        || !sensor->is_supported(reinterpret_cast<uint8_t *>(&this->found_sensors_[*sensor->get_index()]))) {
-        this->status_set_error();
-        continue;
-      }
-      sensor->set_address(this->found_sensors_[*sensor->get_index()]);
-    }
-
-    if (!sensor->setup_sensor()) {
-      this->status_set_error();
-    }
+  if (!this->setup_sensors()) {
+    this->status_set_error();
   }
 }
 
@@ -152,6 +174,10 @@ void DallasComponent::dump_config() {
   LOG_UPDATE_INTERVAL(this);
   LOG_UPDATE_ALERT_INTERVAL(this);
 
+  DallasNetwork::dump_config();
+}
+
+void DallasNetwork::dump_config() {
   if (this->found_sensors_.empty()) {
     ESP_LOGW(TAG, "  Found no sensors! X");
   } else {
