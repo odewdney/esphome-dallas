@@ -49,16 +49,16 @@ async def to_code(config):
 
     if CONF_COUNTER_A in config:
         sens = await sensor.new_sensor(config[CONF_COUNTER_A])
-        cg.add(var.set_counter_a(sens))
+        cg.add(var.set_counter_a_sensor(sens))
     if CONF_COUNTER_B in config:
         sens = await sensor.new_sensor(config[CONF_COUNTER_B])
-        cg.add(var.set_counter_b(sens))
+        cg.add(var.set_counter_b_sensor(sens))
     if CONF_COUNTER_C in config:
         sens = await sensor.new_sensor(config[CONF_COUNTER_C])
-        cg.add(var.set_counter_c(sens))
+        cg.add(var.set_counter_c_sensor(sens))
     if CONF_COUNTER_D in config:
         sens = await sensor.new_sensor(config[CONF_COUNTER_D])
-        cg.add(var.set_counter_d(sens))
+        cg.add(var.set_counter_d_sensor(sens))
 
     await dallas.register_dallas_device(var, config)
 

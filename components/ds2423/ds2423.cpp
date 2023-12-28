@@ -16,10 +16,10 @@ bool DallasCounterComponent::is_supported(uint8_t *address8) {
 void DallasCounterComponent::update() {
   ESP_LOGD(TAG, "updating counter");
 
-  this->read_counter_(0, this->counter_a_);
-  this->read_counter_(1, this->counter_b_);
-  this->read_counter_(2, this->counter_c_);
-  this->read_counter_(3, this->counter_d_);
+  this->read_counter_(0, this->counter_a_sensor_);
+  this->read_counter_(1, this->counter_b_sensor_);
+  this->read_counter_(2, this->counter_c_sensor_);
+  this->read_counter_(3, this->counter_d_sensor_);
 }
 
 void DallasCounterComponent::dump_config() {

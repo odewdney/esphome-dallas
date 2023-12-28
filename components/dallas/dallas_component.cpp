@@ -70,7 +70,7 @@ bool DallasNetwork::update_conversions() {
 
   for (auto *sensor : this->sensors_) {
 	auto conversion_millis = sensor->millis_to_wait_for_conversion();
-	if (conversion_millis > 0) {
+	if (conversion_millis > 0 && conversion_millis != SCHEDULER_DONT_RUN) {
       this->component_set_timeout(sensor->get_address_name(), conversion_millis, [this, sensor] {
 	    sensor->read_conversion();
       });

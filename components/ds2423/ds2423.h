@@ -13,16 +13,12 @@ class DallasCounterComponent : public PollingComponent, public DallasDevice {
   void update() override;
   void dump_config() override;
 
-  void set_counter_a(sensor::Sensor *counter) { counter_a_ = counter; }
-  void set_counter_b(sensor::Sensor *counter) { counter_b_ = counter; }
-  void set_counter_c(sensor::Sensor *counter) { counter_c_ = counter; }
-  void set_counter_d(sensor::Sensor *counter) { counter_d_ = counter; }
+  SUB_SENSOR(counter_a);
+  SUB_SENSOR(counter_b);
+  SUB_SENSOR(counter_c);
+  SUB_SENSOR(counter_d);
 
  protected:
-  sensor::Sensor *counter_a_{nullptr};
-  sensor::Sensor *counter_b_{nullptr};
-  sensor::Sensor *counter_c_{nullptr};
-  sensor::Sensor *counter_d_{nullptr};
   
   void read_counter_(uint8_t counter, sensor::Sensor *sensor);
 
