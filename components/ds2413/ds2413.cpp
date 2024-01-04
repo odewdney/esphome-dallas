@@ -39,8 +39,10 @@ void DS2413Device::digital_write_(uint8_t pin, bool value) {
     uint8_t bit = 1<<pin;
     this->current_latch_ &= ~bit;
     if (value)
-        this->current_latch_ |= pin;
+        this->current_latch_ |= bit;
+ESP_LOGD(TAG,"setting to %02x",this->current_latch_);
     auto state = this->pio_access_write(this->current_latch_);
+ESP_LOGD(TAG,"state = %02x", state ? state.value() : -1);
     if (state)
         this->current_state_ = state.value();
 }
@@ -83,7 +85,7 @@ optional<uint8_t> DS2413Device::pio_access_write(uint8_t data) {
 
         wire->select(this->address_);
         wire->write8(DALLAS_PIO_ACCESS_WRITE_CMD);
-        data |= 0x03;
+        data |= 0xfc;
         wire->write8(data);
         data ^= 0xff;
         wire->write8(data);
@@ -97,7 +99,7 @@ optional<uint8_t> DS2413Device::pio_access_write(uint8_t data) {
     }
 
     if ((((data & 0xf0) ^ 0xf0)>>4) != (data & 0x0f) ) {
-        ESP_LOGW(TAG, "Bad daat %02x", data);
+        ESP_LOGW(TAG, "Bad data %02x", data);
         return {};
     }
     return data & 0x0f;
